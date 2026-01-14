@@ -5,6 +5,7 @@ import com.cymelle.backend.model.Order;
 import com.cymelle.backend.model.OrderStatus;
 import com.cymelle.backend.model.User;
 import com.cymelle.backend.service.OrderService;
+import com.cymelle.backend.dto.UpdateOrderStatusRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -52,8 +53,8 @@ public class OrderController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable Long id,
-            @RequestParam OrderStatus status
+            @RequestBody UpdateOrderStatusRequest request
     ) {
-        return ResponseEntity.ok(service.updateOrderStatus(id, status));
+        return ResponseEntity.ok(service.updateOrderStatus(id, request.getStatus()));
     }
 }

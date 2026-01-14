@@ -5,6 +5,7 @@ import com.cymelle.backend.model.Ride;
 import com.cymelle.backend.model.RideStatus;
 import com.cymelle.backend.model.User;
 import com.cymelle.backend.service.RideService;
+import com.cymelle.backend.dto.UpdateRideStatusRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -48,9 +49,9 @@ public class RideController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Ride> updateRideStatus(
             @PathVariable Long id,
-            @RequestParam RideStatus status,
+            @RequestBody UpdateRideStatusRequest request,
             @AuthenticationPrincipal User driver // Assuming the one updating is the driver or admin
     ) {
-        return ResponseEntity.ok(service.updateRideStatus(id, status, driver));
+        return ResponseEntity.ok(service.updateRideStatus(id, request.getStatus(), driver));
     }
 }
