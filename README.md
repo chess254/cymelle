@@ -74,7 +74,7 @@ You can also run the application fully containerized with PostgreSQL using Docke
 
 ### API Documentation
 Once the application is running, you can access the Swagger UI at:
-http://localhost:8080/swagger-ui.html or alternatively use the postman collection.
+http://localhost:8080/swagger-ui.html or alternatively use the postman collection Cymelle_API_Collection.json thats in the repo.
 
 ## Testing
 - **Integration Tests**: Run `./mvnw test` to execute the full integration test suite.

@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Endpoints for user registration and JWT token generation")
+@Tag(name = "Authentication")
 public class AuthenticationController {
 
     private final AuthenticationService service;

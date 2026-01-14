@@ -515,4 +515,71 @@ class BackendApplicationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Ride can only be completed after it has been accepted."));
     }
+
+    // --- 6. Ownership & Access Control Tests ---
+
+    @Test
+    void shouldEnforceOrderOwnership() throws Exception {
+        String adminToken = registerAndGetToken("admin_owner@example.com", Role.ADMIN);
+        String cust1Token = registerAndGetToken("cust1@example.com", Role.CUSTOMER);
+        String cust2Token = registerAndGetToken("cust2@example.com", Role.CUSTOMER);
+
+        // Admin creates product
+        Product product = Product.builder().name("Item").price(BigDecimal.TEN).stockQuantity(10).category("Cat").build();
+        MvcResult prodResult = mockMvc.perform(post("/api/v1/products").header("Authorization", "Bearer " + adminToken).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(product))).andReturn();
+        Long prodId = objectMapper.readTree(prodResult.getResponse().getContentAsString()).get("id").asLong();
+
+        // Cust 1 places order
+        OrderRequest orderReq = OrderRequest.builder().items(List.of(OrderItemRequest.builder().productId(prodId).quantity(1).build())).build();
+        MvcResult orderResult = mockMvc.perform(post("/api/v1/orders").header("Authorization", "Bearer " + cust1Token).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(orderReq))).andReturn();
+        Long orderId = objectMapper.readTree(orderResult.getResponse().getContentAsString()).get("id").asLong();
+
+        // Admin should be able to view it
+        mockMvc.perform(get("/api/v1/orders/" + orderId).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        // Cust 1 should be able to view their own order
+        mockMvc.perform(get("/api/v1/orders/" + orderId).header("Authorization", "Bearer " + cust1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(orderId));
+
+        // Cust 2 should NOT be able to view Cust 1's order
+        mockMvc.perform(get("/api/v1/orders/" + orderId).header("Authorization", "Bearer " + cust2Token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You do not have permission to view this order."));
+    }
+
+    @Test
+    void shouldEnforceRideOwnership() throws Exception {
+        String adminToken = registerAndGetToken("admin_ride_owner@example.com", Role.ADMIN);
+        String custToken = registerAndGetToken("cust_ride@example.com", Role.CUSTOMER);
+        String driverToken = registerAndGetToken("driver_ride@example.com", Role.DRIVER);
+        String otherToken = registerAndGetToken("other_ride@example.com", Role.CUSTOMER);
+
+        // Customer requests ride
+        RideRequest rideReq = RideRequest.builder().pickupLocation("X").dropoffLocation("Y").build();
+        MvcResult rideResult = mockMvc.perform(post("/api/v1/rides").header("Authorization", "Bearer " + custToken).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(rideReq))).andReturn();
+        Long rideId = objectMapper.readTree(rideResult.getResponse().getContentAsString()).get("id").asLong();
+
+        // 1. Admin can view it
+        mockMvc.perform(get("/api/v1/rides/" + rideId).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        // 2. Customer can view their own request
+        mockMvc.perform(get("/api/v1/rides/" + rideId).header("Authorization", "Bearer " + custToken))
+                .andExpect(status().isOk());
+
+        // 3. Other user CANNOT view it
+        mockMvc.perform(get("/api/v1/rides/" + rideId).header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("You do not have permission to view this ride."));
+
+        // 4. Driver accepts it
+        UpdateRideStatusRequest acceptReq = UpdateRideStatusRequest.builder().status(RideStatus.ACCEPTED).build();
+        mockMvc.perform(patch("/api/v1/rides/" + rideId + "/status").header("Authorization", "Bearer " + driverToken).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(acceptReq)));
+
+        // 5. Assigned Driver can now view it
+        mockMvc.perform(get("/api/v1/rides/" + rideId).header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk());
+    }
 }

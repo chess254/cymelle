@@ -18,7 +18,7 @@ import org.springdoc.core.annotations.ParameterObject;
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
-@Tag(name = "Products", description = "Endpoints for catalog management. Viewing is public, modifications require ADMIN role.")
+@Tag(name = "Products")
 public class ProductController {
 
     private final ProductService service;

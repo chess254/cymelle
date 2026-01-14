@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.cymelle.backend.model.Role;
+import org.springframework.security.access.AccessDeniedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -24,7 +25,7 @@ import org.springframework.util.StringUtils;
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
-@Tag(name = "Orders", description = "Endpoints for placing and managing ecommerce orders")
+@Tag(name = "Orders")
 @SecurityRequirement(name = "bearerAuth")
 public class OrderController {
 
@@ -79,8 +80,16 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getOrderById(id));
+    @Operation(summary = "Get order by ID", description = "Admins can get any order. Customers and Drivers can only get their own orders.")
+    public ResponseEntity<Order> getOrderById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user
+    ) {
+        Order order = service.getOrderById(id);
+        if (user.getRole() != Role.ADMIN && !order.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You do not have permission to view this order.");
+        }
+        return ResponseEntity.ok(order);
     }
 
     @PatchMapping("/{id}/status")

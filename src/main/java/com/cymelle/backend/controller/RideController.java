@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.cymelle.backend.model.Role;
+import org.springframework.security.access.AccessDeniedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -24,7 +25,7 @@ import org.springframework.util.StringUtils;
 @RestController
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
-@Tag(name = "Rides", description = "Endpoints for the ride-hailing service")
+@Tag(name = "Rides")
 @SecurityRequirement(name = "bearerAuth")
 public class RideController {
 
@@ -75,8 +76,20 @@ public class RideController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ride> getRideById(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getRideById(id));
+    @Operation(summary = "Get ride by ID", description = "Admins can get any ride. Customers and Drivers can only get rides they are involved in.")
+    public ResponseEntity<Ride> getRideById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user
+    ) {
+        Ride ride = service.getRideById(id);
+        boolean isAdmin = user.getRole() == Role.ADMIN;
+        boolean isCustomer = ride.getCustomer().getId().equals(user.getId());
+        boolean isDriver = ride.getDriver() != null && ride.getDriver().getId().equals(user.getId());
+
+        if (!isAdmin && !isCustomer && !isDriver) {
+            throw new AccessDeniedException("You do not have permission to view this ride.");
+        }
+        return ResponseEntity.ok(ride);
     }
 
     @PatchMapping("/{id}/status")
