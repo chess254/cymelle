@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 .requestMatchers(DELETE, "/api/v1/products/**").hasAuthority(ADMIN.name())
 
                                 // Order/Ride: "only authenticated users can place orders/rides"
+                                .requestMatchers(PATCH, "/api/v1/orders/*/status").hasAuthority(ADMIN.name())
                                 .requestMatchers("/api/v1/orders/**").authenticated()
                                 .requestMatchers("/api/v1/rides/**").authenticated()
 
