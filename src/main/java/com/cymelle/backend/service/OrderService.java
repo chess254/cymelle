@@ -2,6 +2,8 @@ package com.cymelle.backend.service;
 
 import com.cymelle.backend.dto.OrderItemRequest;
 import com.cymelle.backend.dto.OrderRequest;
+import com.cymelle.backend.exception.InsufficientStockException;
+import com.cymelle.backend.exception.ResourceNotFoundException;
 import com.cymelle.backend.model.*;
 import com.cymelle.backend.repository.OrderRepository;
 import com.cymelle.backend.repository.ProductRepository;
@@ -25,17 +27,17 @@ public class OrderService {
     public Order placeOrder(User user, OrderRequest request) {
         Order order = new Order();
         order.setUser(user);
-        order.setPaymentStatus("PAID"); // Simulation
+        order.setPaymentStatus("PAID"); 
         
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalCost = BigDecimal.ZERO;
 
         for (OrderItemRequest itemRequest : request.getItems()) {
             Product product = productRepository.findById(itemRequest.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + itemRequest.getProductId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + itemRequest.getProductId()));
             
             if (product.getStockQuantity() < itemRequest.getQuantity()) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
+                throw new InsufficientStockException("Insufficient stock for product: " + product.getName() + " (Requested: " + itemRequest.getQuantity() + ", Available: " + product.getStockQuantity() + ")");
             }
             
             // Deduct stock
@@ -57,12 +59,12 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    public Page<Order> getOrdersByUser(User user, Pageable pageable) {
-        return orderRepository.findByUserId(user.getId(), pageable);
+    public Page<Order> getOrdersByUserId(Long userId, Pageable pageable) {
+        return orderRepository.findByUserId(userId, pageable);
     }
 
     public Order getOrderById(Long id) {
-        return orderRepository.findById(id).orElseThrow(() -> new RuntimeException("Order not found"));
+        return orderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
     }
 
     public Order updateOrderStatus(Long id, OrderStatus status) {
@@ -73,5 +75,21 @@ public class OrderService {
 
     public Page<Order> searchOrdersByStatus(OrderStatus status, Pageable pageable) {
         return orderRepository.findByStatus(status, pageable);
+    }
+
+    public Page<Order> getAllOrders(Pageable pageable) {
+        return orderRepository.findAll(pageable);
+    }
+
+    public Page<Order> searchOrdersByUserAndStatus(Long userId, OrderStatus status, Pageable pageable) {
+        return orderRepository.findByUserIdAndStatus(userId, status, pageable);
+    }
+
+    public Page<Order> getOrdersByUserEmail(String email, Pageable pageable) {
+        return orderRepository.findByUserEmail(email, pageable);
+    }
+
+    public Page<Order> searchOrdersByUserEmailAndStatus(String email, OrderStatus status, Pageable pageable) {
+        return orderRepository.findByUserEmailAndStatus(email, status, pageable);
     }
 }

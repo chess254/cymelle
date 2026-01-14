@@ -4,6 +4,7 @@ import com.cymelle.backend.model.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,17 +16,23 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RegisterRequest {
     @NotBlank(message = "First name is required")
+    @Schema(description = "User's first name", example = "John")
     private String firstName;
     
     @NotBlank(message = "Last name is required")
+    @Schema(description = "User's last name", example = "Doe")
     private String lastName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
+    @Schema(description = "User's email address", example = "john.doe@example.com")
     private String email;
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
+    @Schema(description = "Secure password (min 6 chars)", example = "password123")
     private String password;
-    private Role role; // Optional, default to CUSTOMER if null
+
+    @Schema(description = "Account role. Defaults to CUSTOMER if not provided.", example = "CUSTOMER")
+    private Role role; 
 }

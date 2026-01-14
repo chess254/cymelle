@@ -1,0 +1,605 @@
+{
+    "info": {
+        "_postman_id": "c7a8b9d0-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+        "name": "Cymelle Technologies API v2",
+        "description": "Comprehensive Postman collection for the Cymelle Multi-Service Backend.\n\n### Authentication\n- Register via `/api/v1/auth/register` (Roles: `ADMIN`, `CUSTOMER`, `DRIVER`)\n- Authenticate via `/api/v1/auth/authenticate` to get a JWT token.\n- Use the result token in the **Bearer Token** authorization of other requests.\n\n### Error Handling\nThe API returns standardized error responses:\n- `400 Bad Request`: Validation failures or logic errors (like Insufficient Stock).\n- `401 Unauthorized`: Bad credentials.\n- `403 Forbidden`: Insufficient permissions (e.g., Customer accessing Admin endpoints).\n- `404 Not Found`: Resource ID does not exist.\n- `409 Conflict`: Database integrity violation (e.g., deleting a product that has orders).",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Authentication",
+            "item": [
+                {
+                    "name": "Register User",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"firstName\": \"Test\",\n    \"lastName\": \"User\",\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"CUSTOMER\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Register a new account. Role defaults to CUSTOMER if omitted."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Authenticate",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = JSON.parse(responseBody);",
+                                    "pm.environment.set(\"token\", jsonData.token);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/auth/authenticate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "authenticate"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "401 Unauthorized Example",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"wrong_pass\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{baseUrl}}/api/v1/auth/authenticate",
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "auth",
+                                        "authenticate"
+                                    ]
+                                }
+                            },
+                            "status": "Unauthorized",
+                            "code": 401,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:28:34\",\n    \"status\": 401,\n    \"error\": \"Unauthorized\",\n    \"message\": \"Invalid email or password.\",\n    \"path\": \"/api/v1/auth/authenticate\"\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2. Products",
+            "item": [
+                {
+                    "name": "Get Products (Paginated & Search)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/products?search=Electronics&page=0&size=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "products"
+                            ],
+                            "query": [
+                                {
+                                    "key": "search",
+                                    "value": "Electronics",
+                                    "description": "Optional keyword for name or category"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0",
+                                    "description": "Page index"
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10",
+                                    "description": "Items per page"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Product By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/products/1",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "products",
+                                "1"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "404 Not Found Example",
+                            "status": "Not Found",
+                            "code": 404,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:30:00\",\n    \"status\": 404,\n    \"error\": \"Not Found\",\n    \"message\": \"Product not found with id: 999\",\n    \"path\": \"/api/v1/products/999\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Create Product (Admin)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Sleek Keyboard\",\n    \"description\": \"RGB Gaming keyboard\",\n    \"price\": 59.99,\n    \"stockQuantity\": 100,\n    \"category\": \"Accessories\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "products"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "400 Validation Error",
+                            "status": "Bad Request",
+                            "code": 400,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:31:00\",\n    \"status\": 400,\n    \"error\": \"Validation Failed\",\n    \"message\": \"Input validation failed\",\n    \"validationErrors\": {\n        \"price\": \"Price must be greater than 0\",\n        \"name\": \"Name is required\"\n    }\n}"
+                        },
+                        {
+                            "name": "403 Forbidden (Customer Access)",
+                            "status": "Forbidden",
+                            "code": 403,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:32:00\",\n    \"status\": 403,\n    \"error\": \"Forbidden\",\n    \"message\": \"You do not have permission to access this resource.\",\n    \"path\": \"/api/v1/products\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Delete Product (Admin)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/products/2",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "products",
+                                "2"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "409 Conflict (FK Violation)",
+                            "status": "Conflict",
+                            "code": 409,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:33:00\",\n    \"status\": 409,\n    \"error\": \"Conflict\",\n    \"message\": \"Cannot delete or update record because it is being referenced by other data (e.g., an order or ride).\",\n    \"path\": \"/api/v1/products/2\"\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "3. Orders",
+            "item": [
+                {
+                    "name": "Place Order",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 2\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/orders",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "orders"
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "400 Insufficient Stock",
+                            "status": "Bad Request",
+                            "code": 400,
+                            "_postman_previewlanguage": "json",
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"timestamp\": \"2026-01-14T18:34:00\",\n    \"status\": 400,\n    \"error\": \"Bad Request\",\n    \"message\": \"Insufficient stock for product: Sleek Keyboard (Requested: 200, Available: 100)\",\n    \"path\": \"/api/v1/orders\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Admin Search Orders (Email & Status)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/orders?email=user@example.com&status=PENDING&page=0&size=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "orders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "email",
+                                    "value": "user@example.com",
+                                    "description": "Filter by user email (Admin Only)"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "PENDING",
+                                    "description": "Filter by PENDING, SHIPPED, DELIVERED, CANCELLED"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Order Status (Admin)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"SHIPPED\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/orders/1/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "orders",
+                                "1",
+                                "status"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "4. Rides",
+            "item": [
+                {
+                    "name": "Request Ride",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"pickupLocation\": \"Point A\",\n    \"dropoffLocation\": \"Point B\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rides",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "rides"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Admin Search Rides (Email & Status)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rides?email=rider@example.com&status=REQUESTED&page=0&size=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "rides"
+                            ],
+                            "query": [
+                                {
+                                    "key": "email",
+                                    "value": "rider@example.com",
+                                    "description": "Filter by rider email (Admin Only)"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "REQUESTED",
+                                    "description": "Filter by REQUESTED, ACCEPTED, COMPLETED, CANCELLED"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Ride Status (Driver/Admin)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"ACCEPTED\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/v1/rides/1/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "rides",
+                                "1",
+                                "status"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8080",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ]
+}

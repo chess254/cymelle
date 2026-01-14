@@ -96,7 +96,7 @@ class BackendApplicationTests {
                 .firstName("") // Invalid
                 .lastName("Doe")
                 .email("invalid-email") // Invalid
-                .password("123") // Too short
+                .password("123") 
                 .build();
 
         mockMvc.perform(post("/api/v1/auth/register")
@@ -133,7 +133,7 @@ class BackendApplicationTests {
         mockMvc.perform(post("/api/v1/auth/authenticate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden()); 
+                .andExpect(status().isUnauthorized()); 
     }
 
     // --- 2. Product Management ---
@@ -188,12 +188,14 @@ class BackendApplicationTests {
                 .category("Hack")
                 .build();
 
-        // Try Add it should be forbidden
+        // Add it should be forbidden
         mockMvc.perform(post("/api/v1/products")
                         .header("Authorization", "Bearer " + customerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(product)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("You do not have permission to access this resource."));
     }
 
     @Test
@@ -220,7 +222,7 @@ class BackendApplicationTests {
         Product p1 = Product.builder().name("iPhone 15").price(BigDecimal.valueOf(1000)).stockQuantity(5).category("Mobile").build();
         Product p2 = Product.builder().name("Samsung galaxy").price(BigDecimal.valueOf(900)).stockQuantity(5).category("Mobile").build();
         
-        //add products as admin
+        // add products as admin
         mockMvc.perform(post("/api/v1/products").header("Authorization", "Bearer " + adminToken).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(p1)));
         mockMvc.perform(post("/api/v1/products").header("Authorization", "Bearer " + adminToken).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(p2)));
 
@@ -317,22 +319,12 @@ class BackendApplicationTests {
         OrderItemRequest itemReq = OrderItemRequest.builder().productId(prodId).quantity(2).build();
         OrderRequest orderReq = OrderRequest.builder().items(List.of(itemReq)).build();
 
-        // Since we throw RuntimeException in service, and no global handler is set, it bubbles up.
-        Exception exception = org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> {
-            mockMvc.perform(post("/api/v1/orders")
-                            .header("Authorization", "Bearer " + custToken)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(orderReq)));
-        });
-
-        String message = exception.getMessage();
-        if (exception.getCause() != null) {
-            message += " " + exception.getCause().getMessage();
-        }
-        
-        if (!message.contains("Insufficient stock")) {
-             throw new AssertionError("Expected 'Insufficient stock' message, but got: " + message);
-        }
+        mockMvc.perform(post("/api/v1/orders")
+                        .header("Authorization", "Bearer " + custToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Insufficient stock")));
     }
 
     // --- 4. Ride Management ---
@@ -412,6 +404,36 @@ class BackendApplicationTests {
                         .header("Authorization", "Bearer " + custToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(2))); // Should verify we get both orders back for this user
+
+        // Test 3: Admin Search All by Status
+        mockMvc.perform(get("/api/v1/orders?status=SHIPPED")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(greaterThanOrEqualTo(1))));
+
+        // Test 4: Admin Search All (No status)
+        mockMvc.perform(get("/api/v1/orders")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", greaterThanOrEqualTo(2)));
+
+        // Test 5: Admin Search by both Email and Status
+        mockMvc.perform(get("/api/v1/orders?email=search_orders@example.com&status=SHIPPED")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)));
+
+        // Test 6: Admin Search by Email Only
+        mockMvc.perform(get("/api/v1/orders?email=search_orders@example.com")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)));
+
+        // Test 7: Admin Search by Status Only
+        mockMvc.perform(get("/api/v1/orders?status=SHIPPED")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(greaterThanOrEqualTo(1))));
     }
 
     @Test
@@ -446,5 +468,51 @@ class BackendApplicationTests {
                         .header("Authorization", "Bearer " + custToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(2)));
+    }
+
+    @Test
+    void shouldFailRideAssignmentIfSelf() throws Exception {
+        String custToken = registerAndGetToken("self_driver@example.com", Role.DRIVER); // Register as DRIVER but also acts as customer
+        
+        // Request ride
+        RideRequest req = RideRequest.builder().pickupLocation("LocA").dropoffLocation("LocB").build();
+        MvcResult res = mockMvc.perform(post("/api/v1/rides")
+                .header("Authorization", "Bearer " + custToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andReturn();
+        Long rideId = objectMapper.readTree(res.getResponse().getContentAsString()).get("id").asLong();
+
+        // Attempt to accept own ride
+        UpdateRideStatusRequest updateReq = UpdateRideStatusRequest.builder().status(RideStatus.ACCEPTED).build();
+        mockMvc.perform(patch("/api/v1/rides/" + rideId + "/status")
+                .header("Authorization", "Bearer " + custToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Drivers cannot accept a ride they requested as a customer."));
+    }
+
+    @Test
+    void shouldFailInvalidRideStatusTransition() throws Exception {
+        String custToken = registerAndGetToken("transition_customer@example.com", Role.CUSTOMER);
+        String adminToken = registerAndGetToken("transition_admin@example.com", Role.ADMIN);
+
+        RideRequest req = RideRequest.builder().pickupLocation("LocA").dropoffLocation("LocB").build();
+        MvcResult res = mockMvc.perform(post("/api/v1/rides")
+                .header("Authorization", "Bearer " + custToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andReturn();
+        Long rideId = objectMapper.readTree(res.getResponse().getContentAsString()).get("id").asLong();
+
+        // Attempt to complete without accepting
+        UpdateRideStatusRequest updateReq = UpdateRideStatusRequest.builder().status(RideStatus.COMPLETED).build();
+        mockMvc.perform(patch("/api/v1/rides/" + rideId + "/status")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Ride can only be completed after it has been accepted."));
     }
 }

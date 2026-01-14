@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -23,10 +23,12 @@ public class Ride {
 
     @ManyToOne
     @JoinColumn(name = "customer_id", nullable = false)
+    @JsonIgnoreProperties({"id", "firstName", "lastName", "role"})
     private User customer;
 
     @ManyToOne
     @JoinColumn(name = "driver_id")
+    @JsonIgnoreProperties({"id", "firstName", "lastName", "role"})
     private User driver;
 
     @Column(nullable = false)

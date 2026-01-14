@@ -13,15 +13,33 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.cymelle.backend.model.Role;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.util.StringUtils;
 
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
+@Tag(name = "Orders", description = "Endpoints for placing and managing ecommerce orders")
+@SecurityRequirement(name = "bearerAuth")
 public class OrderController {
 
     private final OrderService service;
 
     @PostMapping
+    @Operation(
+            summary = "Place a new order",
+            description = "Creates a new order with multiple items. Authenticated customers only.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Order placed successfully"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input or processing error"),
+                    @ApiResponse(responseCode = "401", description = "Unauthorized - Missing or invalid token")
+            }
+    )
     public ResponseEntity<Order> placeOrder(
             @AuthenticationPrincipal User user,
             @RequestBody @Valid OrderRequest request
@@ -30,19 +48,34 @@ public class OrderController {
     }
 
     @GetMapping
+    @Operation(
+            summary = "Get list of orders",
+            description = "Retrieves a paginated list of orders. Admins can see all orders or filter by email. Customers only see their own orders."
+    )
     public ResponseEntity<Page<Order>> getOrders(
             @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String email,
             @RequestParam(required = false) OrderStatus status,
-            Pageable pageable
+            @ParameterObject Pageable pageable
     ) {
-        // If status is provided, search by status (maybe admin only feature in real world, but req implies search capability)
-        // Check requirement: "search for rides/orders (by user or status)"
-        // If user is ADMIN, maybe they can search all? 
-        // For simplicity, if status provided we search by status, else by user.
-        if (status != null) {
-            return ResponseEntity.ok(service.searchOrdersByStatus(status, pageable));
+        if (user.getRole() == Role.ADMIN) {
+            boolean hasEmail = StringUtils.hasText(email);
+            boolean hasStatus = status != null;
+
+            if (hasEmail && hasStatus) {
+                return ResponseEntity.ok(service.searchOrdersByUserEmailAndStatus(email, status, pageable));
+            } else if (hasEmail) {
+                return ResponseEntity.ok(service.getOrdersByUserEmail(email, pageable));
+            } else if (hasStatus) {
+                return ResponseEntity.ok(service.searchOrdersByStatus(status, pageable));
+            }
+            return ResponseEntity.ok(service.getAllOrders(pageable));
+        } else {
+            if (status != null) {
+                return ResponseEntity.ok(service.searchOrdersByUserAndStatus(user.getId(), status, pageable));
+            }
+            return ResponseEntity.ok(service.getOrdersByUserId(user.getId(), pageable));
         }
-        return ResponseEntity.ok(service.getOrdersByUser(user, pageable));
     }
 
     @GetMapping("/{id}")

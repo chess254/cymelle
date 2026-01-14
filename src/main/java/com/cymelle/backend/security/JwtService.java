@@ -69,16 +69,7 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey); // Ensure secret is base64 encoded or simple bytes? 
-        // Ideally should be base64. I'll assume the prop is base64 encoded for this impl, 
-        // OR I can use Keys.hmacShaKeyFor(secretKey.getBytes()) if it's a plain string.
-        // For safety I will assume plain string logic here usually but standard JJWT practice favors Base64.
-        // I will use Decoders.BASE64.decode assuming user provides a base64 encoded string OR I'll adjust.
-        // For simplicity, let's assume the user string is just a long random string and we convert it.
-        // Actually, if I use a simple string in properties, I should use hmacShaKeyFor(bytes).
-        // Let's stick to base64 decode to follow standard practices, but I must ensure the key in properties is base64 capable.
-        // The one I put "your_very_secure_secret..." is not base64. 
-        // So I'll just use getBytes() for now to avoid decoding errors with that placeholder.
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 }

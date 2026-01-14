@@ -1,5 +1,6 @@
 package com.cymelle.backend.service;
 
+import com.cymelle.backend.exception.ResourceNotFoundException;
 import com.cymelle.backend.model.Product;
 import com.cymelle.backend.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +28,15 @@ public class ProductService {
     }
 
     public void deleteProduct(Long id) {
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException("Product not found with id: " + id);
+        }
         repository.deleteById(id);
     }
 
     public Product updateProduct(Long id, Product productDetails) {
-        Product product = repository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
         product.setName(productDetails.getName());
         product.setDescription(productDetails.getDescription());
         product.setPrice(productDetails.getPrice());

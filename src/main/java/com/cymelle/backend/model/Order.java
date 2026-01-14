@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,6 +25,7 @@ public class Order {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"id", "firstName", "lastName", "role"})
     private User user;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -37,7 +39,7 @@ public class Order {
 
     private LocalDateTime createdAt;
     
-    // Bonus: Payment Gateway Simulation
+    // Dummy Payment Gateway Simulation status
     private String paymentStatus; 
 
     @PrePersist

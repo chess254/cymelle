@@ -9,4 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RideRepository extends JpaRepository<Ride, Long> {
     Page<Ride> findByCustomerId(Long customerId, Pageable pageable);
     Page<Ride> findByStatus(RideStatus status, Pageable pageable);
+    Page<Ride> findByCustomerIdAndStatus(Long customerId, RideStatus status, Pageable pageable);
+    Page<Ride> findByCustomerEmail(String email, Pageable pageable);
+    Page<Ride> findByCustomerEmailAndStatus(String email, RideStatus status, Pageable pageable);
 }

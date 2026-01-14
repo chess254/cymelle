@@ -13,15 +13,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.cymelle.backend.model.Role;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.util.StringUtils;
 
 @RestController
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
+@Tag(name = "Rides", description = "Endpoints for the ride-hailing service")
+@SecurityRequirement(name = "bearerAuth")
 public class RideController {
 
     private final RideService service;
 
     @PostMapping
+    @Operation(summary = "Request a new ride", description = "Creates a ride request. Authenticated customers only.")
     public ResponseEntity<Ride> requestRide(
             @AuthenticationPrincipal User user,
             @RequestBody @Valid RideRequest request
@@ -32,13 +42,36 @@ public class RideController {
     @GetMapping
     public ResponseEntity<Page<Ride>> getRides(
             @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String email,
             @RequestParam(required = false) RideStatus status,
-            Pageable pageable
+            @ParameterObject Pageable pageable
     ) {
-        if (status != null) {
-            return ResponseEntity.ok(service.searchRidesByStatus(status, pageable));
+        if (user.getRole() == Role.ADMIN) {
+            // Admin search
+            boolean hasEmail = StringUtils.hasText(email);
+            boolean hasStatus = status != null;
+
+            if (hasEmail && hasStatus) {
+                return ResponseEntity.ok(service.searchRidesByCustomerEmailAndStatus(email, status, pageable));
+            } else if (hasEmail) {
+                return ResponseEntity.ok(service.getRidesByCustomerEmail(email, pageable));
+            } else if (hasStatus) {
+                return ResponseEntity.ok(service.searchRidesByStatus(status, pageable));
+            }
+            return ResponseEntity.ok(service.getAllRides(pageable));
+        } else if (user.getRole() == Role.DRIVER) {
+            // Driver search 
+            if (status != null) {
+                return ResponseEntity.ok(service.searchRidesByStatus(status, pageable));
+            }
+            return ResponseEntity.ok(service.getAllRides(pageable));
+        } else {
+            // Customer search
+            if (status != null) {
+                return ResponseEntity.ok(service.searchRidesByCustomerAndStatus(user.getId(), status, pageable));
+            }
+            return ResponseEntity.ok(service.getRidesByCustomerId(user.getId(), pageable));
         }
-        return ResponseEntity.ok(service.getRidesByCustomer(user, pageable));
     }
 
     @GetMapping("/{id}")
@@ -47,10 +80,19 @@ public class RideController {
     }
 
     @PatchMapping("/{id}/status")
+    @Operation(
+            summary = "Update ride status (Accept/Complete)",
+            description = "Main endpoint for drivers to accept rides or complete them. Admins can also update any ride.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Status updated successfully"),
+                    @ApiResponse(responseCode = "400", description = "Illegal state transition or self-assignment"),
+                    @ApiResponse(responseCode = "403", description = "Forbidden - Requires DRIVER or ADMIN role")
+            }
+    )
     public ResponseEntity<Ride> updateRideStatus(
             @PathVariable Long id,
             @RequestBody UpdateRideStatusRequest request,
-            @AuthenticationPrincipal User driver // Assuming the one updating is the driver or admin
+            @AuthenticationPrincipal User driver
     ) {
         return ResponseEntity.ok(service.updateRideStatus(id, request.getStatus(), driver));
     }

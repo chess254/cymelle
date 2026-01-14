@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.math.BigDecimal;
 
@@ -22,7 +23,7 @@ public class OrderItem {
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @JsonIgnore
     private Order order;
 
     @ManyToOne
@@ -33,5 +34,5 @@ public class OrderItem {
     private Integer quantity;
 
     @Column(nullable = false)
-    private BigDecimal price; // Price at the time of purchase
+    private BigDecimal price; 
 }
